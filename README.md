@@ -4,7 +4,7 @@ Plugins and themes for the **Stremio desktop app** on Windows, with Stremio's ow
 
 ## Install (one click)
 
-1. Sign in to GitHub, open this repo's **Releases** page and download **`StremioPlusSetup-<version>.exe`**.
+1. Open this repo's **Releases** page (right side of the repo page) and download **`StremioPlusSetup-<version>.exe`**.
 2. Run it. Windows SmartScreen may say "Windows protected your PC" because the installer isn't code-signed: click **More info → Run anyway**.
 3. Read the "What was found" page, click through, and finish. No admin rights are needed, and you don't need to install Node.js or anything else.
 4. Open **Stremio Plus** from the Desktop or Start Menu.

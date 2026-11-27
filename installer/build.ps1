@@ -52,7 +52,7 @@ Write-Host ''
 Write-Host "Built: $out"
 Write-Host ("SHA-256: " + (Get-FileHash $out -Algorithm SHA256).Hash)
 
-# 3. Optionally publish to the private GitHub repo as a release
+# 3. Optionally publish to the GitHub repo as a release
 if ($Publish) {
   $gh = (Get-Command gh -ErrorAction SilentlyContinue)
   $ghPath = if ($gh) { $gh.Source } else { 'C:\Program Files\GitHub CLI\gh.exe' }
