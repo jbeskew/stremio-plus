@@ -6,6 +6,7 @@
   const SP = (window.StremioPlus = { version: '0.2.0', plugins: [], themes: [], theme: '', _status: {}, _docId: Date.now() + '-' + Math.random().toString(36).slice(2) });
 
   /* ---------- launcher RPC (CDP binding) ---------- */
+  // Runs at document start after a reload, when <html> may not exist yet: nothing here may assume the DOM is ready.
   const pending = new Map();
   let nid = 0;
   SP.call = (op, data) => new Promise((res, rej) => {
@@ -16,6 +17,8 @@
     const p = pending.get(id); if (!p) return; pending.delete(id);
     ok ? p.res(val) : p.rej(new Error(val));
   };
+  // Reload = new page document: the launcher re-reads plugins/ and themes/ and runs everything fresh (like Stremio Enhanced's Ctrl+R).
+  SP.reload = () => SP.call('reload').catch(() => location.reload());
   const log = (level, ...a) => { try { SP.call('log', { level, msg: a.map(String).join(' ') }).catch(() => {}); } catch (_) {} };
 
   /* ---------- plugin settings schemas ---------- */
@@ -394,11 +397,9 @@
     if (navScheduled) return;
     navScheduled = true;
     requestAnimationFrame(() => { navScheduled = false; try { addNavEntry(); } catch (e) { console.error(e); } });
-  }).observe(document.documentElement, { childList: true, subtree: true });
+  }).observe(document, { childList: true, subtree: true });
 
   /* ---------- go ---------- */
-  // Reload = new page document: the launcher re-reads plugins/ and themes/ and runs everything fresh (like Stremio Enhanced's Ctrl+R).
-  SP.reload = () => SP.call('reload').catch(() => location.reload());
   const callReady = (n) => SP.call('ready', { doc: SP._docId }).catch((e) => {
     if (n < 10) setTimeout(() => callReady(n + 1), 500); else console.error('[stremio-plus] ready failed', e);
   });
