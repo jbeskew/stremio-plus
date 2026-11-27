@@ -1,0 +1,8 @@
+/**
+ * @name Sample Purple Accent
+ * @description Tiny example theme: tints the scrollbar and focus colours. Copy it to make your own.
+ * @version 1.0.0
+ * @author stremio-plus
+ */
+:root { --primary-accent-color: #8a63ff; }
+::-webkit-scrollbar-thumb { background: #8a63ff80; }

@@ -1,0 +1,8 @@
+# Your own stuff stays local, so updating the program never conflicts with it.
+/plugins/*
+!/plugins/.gitkeep
+/themes/*
+!/themes/.gitkeep
+/config.json
+/logs/
+/.state/
