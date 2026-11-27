@@ -455,11 +455,31 @@
       ref.insertAdjacentElement('afterend', el);
     });
   }
+  const HOME_ICON = '<path d="M260.393 99a7.98 7.98 0 0 0-5.55-2.25c-2.072 0-4.063.81-5.55 2.25L64.49 275.49a8 8 0 0 0-1.851 2.64c-.429 1-.651 2.07-.649 3.17V447a32.13 32.13 0 0 0 9.41 22.68 32.1 32.1 0 0 0 22.691 9.42h96.501c4.27 0 8.366-1.71 11.385-4.73a16.07 16.07 0 0 0 4.715-11.38V326.5a8.07 8.07 0 0 1 2.35-5.66 8.07 8.07 0 0 1 5.651-2.34h80.301c2.12.01 4.151.85 5.65 2.34a8.07 8.07 0 0 1 2.35 5.66v136.49c-.002 2.13.412 4.22 1.22 6.16a15.9 15.9 0 0 0 3.49 5.23 15.9 15.9 0 0 0 5.226 3.5c1.954.81 4.049 1.22 6.164 1.22H415.5c8.5-.01 16.66-3.39 22.68-9.42 6.02-6.02 9.4-14.18 9.41-22.68V281.3c0-1.1-.22-2.17-.64-3.17a7.9 7.9 0 0 0-1.86-2.64z" fill="currentColor"/><path d="m490.7 242.4-75.1-71.81a944 944 0 0 0-80.304-76.89l-58.1-55.6a31.7 31.7 0 0 0-22.201-8.7c-4.095-.13-8.172.6-11.986 2.08a30.6 30.6 0 0 0-10.214 6.62L19.291 242.4a16.4 16.4 0 0 0-5.115 10.98 16.45 16.45 0 0 0 3.816 11.52 16.1 16.1 0 0 0 4.937 3.83 16.1 16.1 0 0 0 6.031 1.65c2.099.15 4.207-.12 6.203-.79 1.996-.66 3.84-1.71 5.429-3.09l.6-.6L249.495 66.89a8.02 8.02 0 0 1 5.551-2.24c2.071 0 4.062.81 5.549 2.24L468.89 265.9c3.08 2.92 7.19 4.52 11.44 4.45 4.25-.08 8.3-1.82 11.27-4.85 2.89-3.21 4.4-7.43 4.23-11.73-.17-4.32-2-8.4-5.13-11.37" fill="currentColor"/>';
+  function addHomeButton() {
+    if (!document.getElementById('splus-home-css')) {
+      const st = document.createElement('style'); st.id = 'splus-home-css';
+      st.textContent = 'nav:has(>[data-splus-home]){justify-content:flex-start!important}nav:has(>[data-splus-home])>[class*="buttons-container"]{margin-left:auto}';
+      (document.head || document.documentElement).appendChild(st);
+    }
+    document.querySelectorAll('[class*="back-button-container"], [class*="player-nav"] > [class*="player-button"]:first-child').forEach((back) => {
+      const bar = back.parentElement;
+      if (!bar || bar.querySelector('[data-splus-home]')) return;
+      const el = back.cloneNode(true);
+      el.setAttribute('data-splus-home', '1');
+      el.title = 'Home';
+      el.style.cursor = 'pointer';
+      const svg = el.querySelector('svg');
+      if (svg) { svg.removeAttribute('style'); svg.innerHTML = HOME_ICON; }
+      el.addEventListener('click', (e) => { e.preventDefault(); e.stopPropagation(); location.hash = '#/'; }, true);
+      back.insertAdjacentElement('beforebegin', el);
+    });
+  }
   let navScheduled = false;
   new MutationObserver(() => {
     if (navScheduled) return;
     navScheduled = true;
-    requestAnimationFrame(() => { navScheduled = false; try { addNavEntry(); if (SP.player.active()) syncShellVideo(); } catch (e) { console.error(e); } });
+    requestAnimationFrame(() => { navScheduled = false; try { addNavEntry(); addHomeButton(); if (SP.player.active()) syncShellVideo(); } catch (e) { console.error(e); } });
   }).observe(document, { childList: true, subtree: true });
 
   /* ---------- go ---------- */
