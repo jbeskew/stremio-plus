@@ -89,6 +89,17 @@ function satisfies(version, op, wanted) {
   return op === '>=' ? c >= 0 : op === '<=' ? c <= 0 : op === '>' ? c > 0 : op === '<' ? c < 0 : c === 0;
 }
 
+// APIs that need real decoded video frames. Stremio's mpv player draws outside the page, so these cannot work (the
+// <video> stand-in in bootstrap.js only mirrors time/pause/volume). Returns the names found, e.g. ['requestPictureInPicture'].
+const FRAME_APIS = [
+  ['requestPictureInPicture', /requestPictureInPicture/],
+  ['captureStream', /captureStream\s*\(/],
+  ['canvas drawImage(video)', /drawImage\s*\(\s*[\w.]*[vV]ideo/],
+  ['createImageBitmap(video)', /createImageBitmap\s*\(\s*[\w.]*[vV]ideo/],
+  ['VideoFrame', /MediaStreamTrackProcessor|new\s+VideoFrame\s*\(/],
+];
+const detectFrameApis = (text) => FRAME_APIS.filter(([, re]) => re.test(text)).map(([n]) => n);
+
 function scan(dir, suffix) {
   let files = [];
   try { files = fs.readdirSync(dir).filter((f) => f.toLowerCase().endsWith(suffix)).sort(); } catch {}
@@ -107,6 +118,7 @@ function scan(dir, suffix) {
       author: h.author || '',
       settings: h.setting.map(parseSetting).filter((s) => s && !seen.has(s.key) && seen.add(s.key)),
       requires: h.require.map(parseRequire).filter(Boolean),
+      needsFrames: detectFrameApis(text),
       permissions: h.permission.map((x) => x.trim()).filter(Boolean),
       text,
     };
@@ -115,4 +127,4 @@ function scan(dir, suffix) {
 
 const scanPlugins = (root) => scan(path.join(root, 'plugins'), '.plugin.js');
 const scanThemes = (root) => scan(path.join(root, 'themes'), '.theme.css');
-module.exports = { parseHeader, parseSetting, parseRequire, normalizeSetting, compareVersions, satisfies, scanPlugins, scanThemes };
+module.exports = { detectFrameApis, parseHeader, parseSetting, parseRequire, normalizeSetting, compareVersions, satisfies, scanPlugins, scanThemes };

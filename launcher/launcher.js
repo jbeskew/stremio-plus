@@ -10,16 +10,20 @@ const { CDP } = require('./cdp');
 const { scanPlugins, scanThemes, satisfies } = require('./manifest');
 
 const ROOT = path.resolve(__dirname, '..');
+// DATA holds the user's own files (plugins/, themes/, config.json, logs/, .state/). Default: next to the program,
+// so a git checkout works as before; the installer sets STREMIO_PLUS_DATA to %APPDATA%\StremioPlus so program updates never touch it.
+const DATA = path.resolve(process.env.STREMIO_PLUS_DATA || ROOT);
 // STREMIO_PLUS_EXE overrides the default install location of Stremio's desktop shell.
 const EXE = process.env.STREMIO_PLUS_EXE || path.join(process.env.LOCALAPPDATA || '', 'Programs', 'Stremio', 'stremio-shell-ng.exe');
-const CONFIG = path.join(ROOT, 'config.json');
-const STATE_DIR = path.join(ROOT, '.state');
+const CONFIG = path.join(DATA, 'config.json');
+const STATE_DIR = path.join(DATA, '.state');
 const SESSION = path.join(STATE_DIR, 'session.json');
-const LOG_FILE = path.join(ROOT, 'logs', 'launcher.log');
+const LOG_FILE = path.join(DATA, 'logs', 'launcher.log');
 const BOOTSTRAP = fs.readFileSync(path.join(__dirname, 'bootstrap.js'), 'utf8');
 const WEB_RE = /^https:\/\/web\.stremio\.com\//;
 
 fs.mkdirSync(STATE_DIR, { recursive: true });
+for (const d of ['plugins', 'themes']) fs.mkdirSync(path.join(DATA, d), { recursive: true });
 fs.mkdirSync(path.dirname(LOG_FILE), { recursive: true });
 try { if (fs.statSync(LOG_FILE).size > 1024 * 1024) fs.writeFileSync(LOG_FILE, ''); } catch {}
 const log = (...a) => {
@@ -36,13 +40,14 @@ function writeJsonAtomic(f, obj) {
   fs.writeFileSync(tmp, JSON.stringify(obj, null, 2));
   fs.renameSync(tmp, f);
 }
-const loadConfig = () => { const c = readJson(CONFIG, {}); return { plugins: c.plugins || {}, theme: c.theme || '' }; };
+// notes: { '<plugin file>': 'text shown on its panel row' } (e.g. written by the installer's Enhanced import). Unknown keys are kept.
+const loadConfig = () => { const c = readJson(CONFIG, {}); return { ...c, plugins: c.plugins || {}, theme: c.theme || '', notes: c.notes || {} }; };
 const saveConfig = (c) => writeJsonAtomic(CONFIG, c);
 const pluginEnabled = (cfg, file) => cfg.plugins[file] !== false; // new plugins default to enabled
 
 // plugins/themes are scanned once per page load ('ready'); every other op reuses the cache
 let scanCache = null;
-const refreshScan = () => (scanCache = { plugins: scanPlugins(ROOT), themes: scanThemes(ROOT) });
+const refreshScan = () => (scanCache = { plugins: scanPlugins(DATA), themes: scanThemes(DATA) });
 const getPlugins = () => (scanCache || refreshScan()).plugins;
 const getThemes = () => (scanCache || refreshScan()).themes;
 
@@ -148,7 +153,7 @@ function wrapPlugin(p) {
 /** Settings file for a plugin; the name must match a real plugin (the page is not trusted). */
 function settingsFile(file) {
   if (typeof file !== 'string' || !getPlugins().some((p) => p.file === file)) throw new Error('unknown plugin');
-  const dir = path.join(ROOT, 'plugins');
+  const dir = path.join(DATA, 'plugins');
   const full = path.resolve(dir, file.replace(/\.js$/i, '') + '.json');
   if (!full.startsWith(dir + path.sep)) throw new Error('bad path');
   return full;
@@ -185,7 +190,7 @@ async function handleOp(cdp, op, data) {
       const order = planLoad(cfg, plugins);
       if (cfg.theme && !themes.some((t) => t.file === cfg.theme)) { cfg.theme = ''; saveConfig(cfg); }
       const payload = {
-        plugins: plugins.map((p) => ({ file: p.file, name: p.name, description: p.description, version: p.version, author: p.author, enabled: pluginEnabled(cfg, p.file), settings: p.settings, requires: p.requires, permissions: p.permissions, status: status[p.file] || null })),
+        plugins: plugins.map((p) => ({ file: p.file, name: p.name, description: p.description, version: p.version, author: p.author, enabled: pluginEnabled(cfg, p.file), settings: p.settings, note: cfg.notes[p.file] || '', frames: p.needsFrames, requires: p.requires, permissions: p.permissions, status: status[p.file] || null })),
         themes: themes.map((t) => ({ file: t.file, name: t.name, description: t.description, version: t.version, author: t.author })),
         theme: cfg.theme,
         css: themeCss(cfg, themes),
@@ -252,7 +257,7 @@ async function handleOp(cdp, op, data) {
       setTimeout(() => cdp.call('Page.reload', {}).catch((e) => log('WARN reload failed:', String(e.message || e))), 50);
       return true;
     case 'openFolder':
-      spawn('explorer.exe', [ROOT], { detached: true, stdio: 'ignore' }).unref();
+      spawn('explorer.exe', [DATA], { detached: true, stdio: 'ignore' }).unref();
       return true;
     case 'log':
       log('page ' + String(data.level || 'info').replace(/[^a-z]/gi, '') + ':', String(data.msg || '').replace(/[\r\n]+/g, ' ').slice(0, 500));

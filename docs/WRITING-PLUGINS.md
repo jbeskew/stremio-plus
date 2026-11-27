@@ -58,6 +58,8 @@ Settings are stored in `plugins/<file>.json` next to the plugin.
 
 Details on the messages behind this are in `PROTOCOL.md`.
 
+**`<video>` stand-in.** While the player route is open, an invisible `<video>` element is mounted in the player container so plugins written for Stremio Enhanced work unchanged: `currentTime` (read and set), `duration`, `paused`, `ended`, `seeking`, `readyState`, `volume`, `muted`, `playbackRate`, `play()`, `pause()` and the usual events (`timeupdate`, `durationchange`, `loadedmetadata`, `play`, `pause`, `seeking`, `seeked`, `ended`, `volumechange`, `ratechange`) all mirror mpv. It never has picture data: `requestPictureInPicture()` rejects and `captureStream()` throws, and drawing it to a canvas gives nothing, so plugins that need frames cannot work (the panel flags them).
+
 ## Behaviour to know
 
 - A plugin's code runs once per page load, after the panel's `ready`. There is no unload hook; disabling a plugin in the panel takes full effect after a reload (Ctrl+R).

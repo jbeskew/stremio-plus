@@ -109,7 +109,7 @@
   SP._unmark = (file) => document.querySelectorAll('script[data-splus-marker]').forEach((s) => { if (s.id === file) s.remove(); });
 
   /* ---------- mpv player bridge ---------- */
-  const P = { time: null, duration: null, paused: null, seeking: false, ended: false, path: null, volume: null };
+  const P = { time: null, duration: null, paused: null, seeking: false, ended: false, path: null, volume: null, mute: null, speed: null };
   const subs = new Set();
   const state = () => ({ ...P });
   const emit = (type) => subs.forEach((fn) => { try { fn(type, state()); } catch (e) { console.error(e); } });
@@ -132,7 +132,9 @@
       case 'pause': P.paused = !!data; emit('pause'); break;
       case 'seeking': P.seeking = !!data; emit('seeking'); break;
       case 'eof-reached': P.ended = !!data; emit('ended'); break;
-      case 'volume': P.volume = num(data); break;
+      case 'volume': P.volume = num(data); emit('volume'); break;
+      case 'mute': P.mute = !!data; emit('volume'); break;
+      case 'speed': P.speed = num(data); emit('speed'); break;
       case 'path':
         if (data !== P.path) { P.path = data || null; P.time = null; P.duration = null; P.ended = false; emit('load'); }
         break;
@@ -148,7 +150,7 @@
     play: () => send('mpv-set-prop', ['pause', false]),
     setPaused: (p) => send('mpv-set-prop', ['pause', !!p]),
     /** Ask mpv to re-emit current property values (late attach). */
-    reobserve: () => ['path', 'time-pos', 'duration', 'pause', 'seeking', 'eof-reached', 'volume'].forEach((n) => send('mpv-observe-prop', n)),
+    reobserve: () => ['path', 'time-pos', 'duration', 'pause', 'seeking', 'eof-reached', 'volume', 'mute', 'speed'].forEach((n) => send('mpv-observe-prop', n)),
     /** True while the player route is open. */
     active: () => /^#\/player/.test(location.hash),
     /** Stremio core player state (stream, metaItem, seriesInfo, nextVideo, ...). */
@@ -158,6 +160,65 @@
       return (st && st.url) || null;
     },
   };
+
+  /* ---------- <video> stand-in ---------- */
+  // Stremio has no <video>: mpv draws the picture under the page. Plugins written for Stremio Enhanced expect one, so while
+  // the player route is open an invisible real <video> is mounted whose state mirrors the mpv bridge. It never has frames:
+  // requestPictureInPicture rejects, captureStream/drawImage give nothing.
+  let sv = null, svMeta = false;
+  const range = () => ({ length: P.duration ? 1 : 0, start: () => 0, end: () => P.duration || 0 });
+  function makeShellVideo() {
+    const v = document.createElement('video');
+    v.setAttribute('data-splus-video', '1');
+    v.muted = true; v.removeAttribute('controls');
+    v.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;opacity:0;pointer-events:none;z-index:-1';
+    const def = (name, get, set) => Object.defineProperty(v, name, { configurable: true, get, set });
+    def('currentTime', () => (P.time == null ? 0 : P.time), (t) => { t = Math.max(0, +t || 0); P.time = t; SP.player.seek(t); });
+    def('duration', () => (P.duration == null ? NaN : P.duration));
+    def('paused', () => (P.paused == null ? true : P.paused));
+    def('ended', () => !!P.ended);
+    def('seeking', () => !!P.seeking);
+    def('readyState', () => (P.duration == null ? 0 : 4));
+    def('networkState', () => 1);
+    def('buffered', range); def('seekable', range); def('played', range);
+    def('src', () => P.path || '', () => {}); def('currentSrc', () => P.path || '');
+    def('volume', () => (P.volume == null ? 1 : Math.max(0, Math.min(1, P.volume / 100))), (x) => { send('mpv-set-prop', ['volume', Math.round(Math.max(0, Math.min(1, +x || 0)) * 100)]); });
+    def('muted', () => !!P.mute, (m) => { send('mpv-set-prop', ['mute', !!m]); });
+    def('playbackRate', () => P.speed || 1, (r) => { if (+r > 0) send('mpv-set-prop', ['speed', +r]); });
+    def('videoWidth', () => 0); def('videoHeight', () => 0);
+    v.play = () => { SP.player.play(); return Promise.resolve(); };
+    v.pause = () => { SP.player.pause(); };
+    v.load = () => {};
+    v.requestPictureInPicture = () => Promise.reject(new DOMException('Picture-in-Picture is not available with the mpv player', 'NotSupportedError'));
+    v.captureStream = () => { throw new DOMException('captureStream is not available with the mpv player', 'NotSupportedError'); };
+    v.getVideoPlaybackQuality = () => ({ totalVideoFrames: 0, droppedVideoFrames: 0, corruptedVideoFrames: 0, creationTime: performance.now() });
+    return v;
+  }
+  function syncShellVideo() {
+    const want = SP.player.active();
+    if (want && (!sv || !sv.isConnected)) {
+      const host = document.querySelector('[class*="player-container"]') || document.body;
+      if (!host) return;
+      if (getComputedStyle(host).position === 'static') host.style.position = 'relative';
+      sv = makeShellVideo(); svMeta = P.duration != null;
+      host.appendChild(sv);
+    } else if (!want && sv) { sv.remove(); sv = null; }
+  }
+  window.addEventListener('hashchange', syncShellVideo);
+  SP.player.on((type) => {
+    if (!sv) return;
+    const fire = (n) => sv.dispatchEvent(new Event(n));
+    switch (type) {
+      case 'time': fire('timeupdate'); break;
+      case 'duration': fire('durationchange'); if (P.duration != null && !svMeta) { svMeta = true; fire('loadedmetadata'); fire('canplay'); } break;
+      case 'pause': if (P.paused) fire('pause'); else { fire('play'); fire('playing'); } break;
+      case 'seeking': if (P.seeking) fire('seeking'); else { fire('seeked'); fire('timeupdate'); } break;
+      case 'ended': if (P.ended) fire('ended'); break;
+      case 'volume': fire('volumechange'); break;
+      case 'speed': fire('ratechange'); break;
+      case 'load': svMeta = false; fire('emptied'); fire('loadstart'); break;
+    }
+  });
 
   /* ---------- themes ---------- */
   SP.applyThemeCss = (css) => {
@@ -267,11 +328,13 @@
     const s = SP._status[p.file] || {};
     const perms = (p.permissions || []).map((x) => badge(x, 'Declared by the plugin, not enforced')).join('');
     const meta = s.loadMs != null ? '<div class="meta">loaded in ' + esc(s.loadMs) + ' ms</div>' : '';
+    const note = p.note ? '<div class="meta">' + esc(p.note) + '</div>' : '';
+    const frames = p.frames && p.frames.length ? '<div class="blk">Needs real video frames (' + esc(p.frames.join(', ')) + '); may not work with Stremio\'s player</div>' : '';
     const blk = s.blocked ? '<div class="blk">Blocked: ' + esc(s.blocked) + '</div>' : '';
     const err = s.errors ? '<div class="err" title="' + esc(s.lastError) + '">⚠ ' + esc(s.errors) + ' error' + (s.errors > 1 ? 's' : '') + ' · ' + esc(s.lastError) + '</div>' : '';
     return '<div class="row"><input type="checkbox" data-p="' + i + '" ' + (p.enabled ? 'checked' : '') + '><div class="t"><div class="n">' + esc(p.name)
       + ' <span class="sub">' + esc(p.version) + (p.author ? ' · ' + esc(p.author) : '') + '</span>' + perms + '</div><div class="d">' + esc(p.description) + '</div>'
-      + blk + err + meta + '</div>' + (schemaFor(p.file).length ? '<button data-s="' + i + '">Settings</button>' : '') + '</div>';
+      + blk + frames + err + note + meta + '</div>' + (schemaFor(p.file).length ? '<button data-s="' + i + '">Settings</button>' : '') + '</div>';
   }
   function renderList(w) {
     const pl = SP.plugins.length ? SP.plugins.map(pluginRow).join('') : '<div class="empty">No plugins found in the plugins folder.</div>';
@@ -396,13 +459,13 @@
   new MutationObserver(() => {
     if (navScheduled) return;
     navScheduled = true;
-    requestAnimationFrame(() => { navScheduled = false; try { addNavEntry(); } catch (e) { console.error(e); } });
+    requestAnimationFrame(() => { navScheduled = false; try { addNavEntry(); if (SP.player.active()) syncShellVideo(); } catch (e) { console.error(e); } });
   }).observe(document, { childList: true, subtree: true });
 
   /* ---------- go ---------- */
   const callReady = (n) => SP.call('ready', { doc: SP._docId }).catch((e) => {
     if (n < 10) setTimeout(() => callReady(n + 1), 500); else console.error('[stremio-plus] ready failed', e);
   });
-  const start = () => { ensurePanel(); addNavEntry(); SP.player.reobserve(); callReady(0); };
+  const start = () => { ensurePanel(); addNavEntry(); SP.player.reobserve(); syncShellVideo(); callReady(0); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })();

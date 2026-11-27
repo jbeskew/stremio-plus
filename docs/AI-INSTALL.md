@@ -18,7 +18,25 @@ You are helping a user install and use **Stremio Plus**: a plugin/theme loader f
 6. Ask before closing a running Stremio (it interrupts playback) or killing processes.
 7. Don't commit `config.json`, `plugins/*`, `themes/*`, `logs/` or `.state/` (they are in `.gitignore` on purpose).
 
-## Install
+## Install: preferred route is the installer
+
+If the user can use a release, point them to **StremioPlusSetup-<version>.exe** on this repo's Releases page (README, "Install (one click)"). It needs no Node.js and no admin rights, and handles three cases:
+
+1. **No Stremio 5:** downloads the official Stremio 5 from stremio.com, verifies it is signed by Smart Code OOD, installs it silently, then installs Plus.
+2. **Stremio 5 only:** installs Plus. The user's login, add-ons, debrid setup, library and history are Stremio's own and need no migration.
+3. **Stremio 5 + Stremio Enhanced:** as 2, plus copies Enhanced's plugins, themes and plugin settings into Plus. Enhanced is never modified.
+
+Program files go to `%LOCALAPPDATA%\Programs\StremioPlus`. The user's own data (plugins, themes, config, logs, `import-report.txt`) goes to `%APPDATA%\StremioPlus`, so updating or reinstalling the program never touches it. After it runs, verify with `%APPDATA%\StremioPlus\logs\launcher.log` and read `import-report.txt` there.
+
+Do not run the installer on the user's machine without their go-ahead. For testing, `/VERYSILENT /DIR=<dir> /DATADIR=<dir> /TASKS=` installs into a sandbox without shortcuts (`/HIDEENHANCED=1` simulates case 2).
+
+Useful read-only helpers (they ship in `installer\`):
+- `node installer\detect.js` prints what is installed and which case applies.
+- `node installer\import-enhanced.js --src <enhanced dir> --dest <data dir> --dry-run` previews the import (leave out `--dry-run` to perform it).
+
+Plugins Enhanced users had that need real video frames (Picture-in-Picture, screenshots, clip recorders) are imported switched off with a note. Everything else runs via the `<video>` stand-in (see `docs/WRITING-PLUGINS.md`).
+
+## Install from source (git/ZIP)
 
 Run these in PowerShell from the repository folder.
 

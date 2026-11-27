@@ -1,86 +1,70 @@
 # Stremio Plus
 
-A plugin and theme loader for the **normal Stremio desktop app** on Windows. You keep Stremio's smooth native (mpv) playback and everything you already have set up. Stremio Plus only adds a way to load plugins and themes on top.
+Plugins and themes for the **Stremio desktop app** on Windows, with Stremio's own smooth native (mpv) playback. You get a **Stremio Plus** shortcut that opens Stremio with your plugins and themes; the normal Stremio shortcut keeps opening plain Stremio.
 
-This is a clean install: **no plugins are included**. You add your own.
+## Install (one click)
 
-## What stays exactly as it is
+1. Sign in to GitHub, open this repo's **Releases** page and download **`StremioPlusSetup-<version>.exe`**.
+2. Run it. Windows SmartScreen may say "Windows protected your PC" because the installer isn't code-signed: click **More info → Run anyway**.
+3. Read the "What was found" page, click through, and finish. No admin rights are needed, and you don't need to install Node.js or anything else.
+4. Open **Stremio Plus** from the Desktop or Start Menu.
 
-Stremio Plus starts your own installed Stremio and adds a local connection to it. It does not replace, copy or modify Stremio, so all of this keeps working with no setup:
+The installer looks at what's on your PC and does the right thing:
 
-- your Stremio login and account
-- your installed add-ons (including debrid add-ons and their settings)
-- your library, watch history, continue-watching and settings
-- the streaming server and playback, which are Stremio's own
+| You have | What the installer does | What you end up with |
+|---|---|---|
+| **Nothing** (no Stremio, no Stremio Enhanced) | Downloads the official Stremio 5 from stremio.com, checks its digital signature (must be from Smart Code OOD), installs it, then installs Stremio Plus | One app to use. Open **Stremio Plus**, then sign in or create a Stremio account as usual |
+| **Stremio**, no Enhanced | Installs Stremio Plus only | Your login, add-ons (including debrid), library, watch history and settings are all there, because Stremio Plus runs your own Stremio |
+| **Stremio and Stremio Enhanced** | Same as above, and copies your Enhanced plugins and themes into Stremio Plus | Everything above, plus your Enhanced plugins (with their settings) ready to use. Enhanced itself is never changed |
 
-Nothing in `%LOCALAPPDATA%\Programs\Stremio` is changed, and no second streaming server is started. Add-ons are still managed the normal way, in Stremio itself. Stremio Plus is for plugins (extra features) and themes (looks).
+Nothing is moved or deleted. Stremio (and Enhanced, if you have it) keep working exactly as before. If you only have Stremio Enhanced (no regular Stremio), the installer installs Stremio and also imports your Enhanced plugins and themes; your Stremio account itself syncs from the cloud, so sign in once.
 
-## Requirements
+### About the Enhanced import
+- Plugins and their settings (`.plugin.json`) are **copied**. If a name already exists, the copy gets an `-enhanced` suffix; nothing is overwritten.
+- Stremio Plus has a stand-in `<video>` element backed by Stremio's player, so most Enhanced plugins (skip buttons, progress, diagnostics...) run as they are.
+- Plugins that need real video frames, such as **Picture-in-Picture**, screenshots or clip recorders, **cannot work** with Stremio's player. They are imported **switched off** with a note; you can still turn them on in the panel.
+- The installer shows a summary at the end and writes `import-report.txt` into your Stremio Plus folder listing exactly what was imported and why anything is off.
+- Which plugins were on in Enhanced can't always be read; in that case everything is imported as on, except the ones that can't work.
 
-- Windows 10 or 11
-- **Stremio 5** desktop app, installed and opened at least once ([stremio.com/downloads](https://www.stremio.com/downloads)). Expected at `%LOCALAPPDATA%\Programs\Stremio\stremio-shell-ng.exe`. The older Stremio 4 app (`stremio.exe`) does not work.
-- **Node.js 22 or newer** ([nodejs.org](https://nodejs.org), or `winget install OpenJS.NodeJS.LTS`). There are no packages to download beyond Node itself.
+## Using it
 
-## Install
-
-1. Get this folder onto your PC. Either:
-   - **Download ZIP**: on the GitHub page click **Code → Download ZIP**, then extract it somewhere permanent (e.g. `C:\Users\<you>\Documents\Stremio Plus`). Don't run it from inside the ZIP, and don't put it somewhere you'll delete.
-   - or **git**: `git clone https://github.com/jbeskew/stremio-plus.git` (this is a private repo, so you must have accepted the invitation and be signed in to GitHub).
-2. Close Stremio completely (check the system tray too).
-3. Double-click **`install.cmd`**. It checks Node.js and Stremio, tells you plainly if something is missing, and creates **Stremio Plus** shortcuts on your Desktop and Start Menu.
-4. Start Stremio with the new **Stremio Plus** shortcut (red icon) from now on. You should be logged in already.
-5. Press **Ctrl+Shift+P** (or click **Plus** in Stremio's left sidebar) to open the Stremio Plus panel. With nothing installed it says "No plugins found", which is correct.
-
-If you move the folder later, run `install.cmd` again so the shortcuts point at the new place.
-
-## Adding plugins and themes
-
-1. Put a plugin file named `Something.plugin.js` in the **`plugins`** folder, or a theme `Something.theme.css` in the **`themes`** folder. The panel's **Open folder** button opens the Stremio Plus folder.
-2. Open the panel (Ctrl+Shift+P). New plugins appear **enabled**. Press **Ctrl+R** (or F5, or the panel's **Reload** button) to reload Stremio and re-read the folders; this also picks up edits to existing plugins. You stay logged in. If a file still isn't listed, close Stremio completely and start it again from the shortcut.
-3. Pick one theme at a time under **Themes**. Tick or untick plugins to switch them. Enabling takes effect straight away; disabling takes full effect after a restart.
-4. Plugins with settings show a **Settings** button in the panel.
-
-Plugins written for Stremio Enhanced mostly work as they are. Examples to copy from are in `examples/`, and `docs/WRITING-PLUGINS.md` explains the plugin format and API. Plugins that need a `<video>` element (e.g. Picture-in-Picture) cannot work, because Stremio's player draws the video outside the web page.
-
-**Only install plugins you trust.** A plugin is ordinary JavaScript that runs inside Stremio's page with the same access Stremio has, including your account session. Read it, or get it from someone you trust, before enabling it.
+- Open the panel with **Ctrl+Shift+P** (or **Plus** in Stremio's left sidebar): tick/untick plugins, pick a theme, open settings for plugins that have them.
+- **Ctrl+R** (or F5, or the panel's Reload) reloads Stremio and re-reads your plugin and theme files; you stay logged in.
+- Your own plugins/themes folder: Start Menu → **Stremio Plus plugins folder** (it's `%APPDATA%\StremioPlus`). Drop `Name.plugin.js` into `plugins`, `Name.theme.css` into `themes`, then Ctrl+R.
+- Add-ons are installed in Stremio itself, as always, and keep working.
+- **Only install plugins you trust.** A plugin is JavaScript running inside Stremio's page with the same access Stremio has, including your account session.
+- Plugin format, settings, dialogs and the player API: `docs/WRITING-PLUGINS.md`.
 
 ## Things to watch
 
-- **Always start from the Stremio Plus shortcut.** Starting Stremio from its own shortcut works fine but has no plugins. If Stremio is already open when you start Stremio Plus, you'll be asked to close and restart it; anything playing stops.
-- Stremio needs to be fully closed first, or the plugin connection can't be set up. Closing Stremio also stops the launcher.
-- Node.js must be installed and on PATH, or the shortcut does nothing visible. Test with `node --version` in a terminal.
-- **Updates to Stremio** can occasionally change how its player or page works. If a plugin stops working after a Stremio update, check `logs\launcher.log` and see Troubleshooting.
-- **Security:** while Stremio Plus is running, Stremio's web view has a DevTools debug port on `127.0.0.1` (this PC only), on a random port chosen each launch and checked at startup. Web pages can't use it, but **any program running on this PC could find it and control the Stremio page**, including your Stremio session. Run only software you trust. Plain Stremio started from its own shortcut has no debug port.
-- Windows SmartScreen or antivirus may question `wscript.exe` running a `.vbs` file (that's how the shortcut starts the launcher without a console window). It only runs `node launcher\launcher.js`; you can read both files.
+- **Start Stremio from the Stremio Plus shortcut** to get plugins. The normal Stremio shortcut opens plain Stremio. If Stremio is already open when you start Stremio Plus, you'll be asked to close and restart it (anything playing stops).
+- **Updating:** run a newer `StremioPlusSetup` over the old one. Your plugins, themes and settings are kept.
+- **Uninstall:** Windows Settings → Apps → Stremio Plus. It asks whether to also delete your plugins and settings (default: keep). Stremio and Enhanced are never touched.
+- **Stremio 5 required.** The older Stremio 4 app (`stremio.exe`) isn't supported; the installer installs Stremio 5 next to it if needed.
+- **Security:** while Stremio Plus runs, Stremio's web view has a DevTools debug port on `127.0.0.1` (this PC only, random port, checked at startup). Web pages can't use it, but **any program on this PC could find it and control the Stremio page**, including your Stremio session. Run only software you trust. Plain Stremio has no debug port.
+- Windows or antivirus may question `wscript.exe` running a `.vbs` file (how the shortcut starts the launcher with no console window). It only runs the bundled Node on `launcher\launcher.js`; you can read both.
+- After a Stremio update, a plugin may stop working if the player changed. Check `logs\launcher.log` (in `%APPDATA%\StremioPlus`).
 
 ## Troubleshooting
 
 | Symptom | What to check |
 |---|---|
-| Shortcut does nothing | Run `node launcher\launcher.js` in a terminal from this folder to see errors. Check `node --version` is 22+. |
-| "Stremio was not found" | Install Stremio 5 first, or set the `STREMIO_PLUS_EXE` environment variable to the full path of `stremio-shell-ng.exe`, then run `install.cmd` again. |
-| Plugins don't show / panel says none | Names must end in `.plugin.js` / `.theme.css` and be directly inside `plugins` / `themes`. Restart from the shortcut. |
-| A plugin shows a red warning or "Blocked" | The panel shows the reason (an error it threw, or a missing `@require`). Details are in `logs\launcher.log`. |
+| Nothing happens when opening Stremio Plus | Look at `%APPDATA%\StremioPlus\logs\launcher.log`. Make sure Stremio 5 is installed at `%LOCALAPPDATA%\Programs\Stremio`. |
+| Download of Stremio fails or the signature check fails (new installs) | Install Stremio yourself from stremio.com/downloads, then run the setup again. |
+| Plugins don't show / panel says none | Names must end in `.plugin.js` / `.theme.css` and sit directly in `plugins` / `themes`. Press Ctrl+R. |
+| A plugin shows a red warning or "Blocked" | The panel shows why (an error it threw, or a missing `@require`). Details are in the log. |
 | Ctrl+Shift+P does nothing | You started plain Stremio. Close it and use the Stremio Plus shortcut. |
-| Asked to close and restart Stremio | Normal when Stremio was already open. Say Yes (playback stops) or No to cancel. |
 
-Log file: `logs\launcher.log` (cleared when it gets large). To see what happened in the last run, open it in Notepad.
+## Install from source (git or ZIP; for developers)
 
-## Updating Stremio Plus
+Needs Windows, Stremio 5 and **Node.js 22+**. Then double-click `install.cmd` (checks requirements, creates the shortcuts; plugins live in this folder's `plugins\`). Update with `git pull`; your `plugins`, `themes` and `config.json` are git-ignored. Remove with `uninstall.cmd`. Build the installer yourself with `installer\build.ps1` (needs Inno Setup 6).
 
-- **git:** `git pull` in this folder. Your `plugins`, `themes` and `config.json` are ignored by git, so they are never overwritten.
-- **ZIP:** download the new ZIP and copy its files over the old folder, but **keep your own `plugins` and `themes` folders and `config.json`**. Then run `install.cmd` once more if the folder moved.
+## For AI assistants
 
-## Uninstall
-
-Double-click `uninstall.cmd` (removes the shortcuts). Start Stremio from its own shortcut and it runs exactly as before. Then delete this folder if you like. Nothing else was changed.
-
-## Using an AI assistant to set this up
-
-See **[docs/AI-INSTALL.md](docs/AI-INSTALL.md)**. It tells an AI coding assistant (Claude Code, etc.) how to install, verify, add plugins and debug safely.
+See **[docs/AI-INSTALL.md](docs/AI-INSTALL.md)**.
 
 ## More
 
-- `docs/WRITING-PLUGINS.md`: plugin and theme format, settings, dialogs, the player bridge
-- `docs/PROTOCOL.md`: how Stremio's page and player talk to each other (for plugin authors and debugging)
-- `CLAUDE.md`: project notes for AI assistants working in this folder
+- `docs/WRITING-PLUGINS.md`: plugin/theme format, settings, dialogs, the player bridge and `<video>` stand-in
+- `docs/PROTOCOL.md`: how Stremio's page and player talk to each other
+- `CLAUDE.md`: project notes for AI assistants

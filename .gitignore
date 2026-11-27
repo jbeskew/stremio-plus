@@ -6,3 +6,7 @@
 /config.json
 /logs/
 /.state/
+
+# Installer build output
+/dist/
+/installer/build/
