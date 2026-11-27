@@ -59,7 +59,7 @@ Then check:
 
 1. Confirm the user wants it and where it comes from (rule 4). Download or write the file, read it fully, and summarise what it does and which pages/hosts it talks to.
 2. Save it as `plugins\<Name>.plugin.js` (or `themes\<Name>.theme.css`). Nothing else to register. New plugins default to enabled.
-3. Restart via the shortcut (or press Reload in the panel; if the new file isn't listed, do a full restart).
+3. Reload with Ctrl+R in Stremio (also F5 or the panel's Reload button; the launcher reloads the page and re-reads `plugins/`). If the file still isn't listed, do a full restart via the shortcut.
 4. Check `logs\launcher.log` for `plugin loaded: <file> (N ms)` and no `ERROR plugin ...`, and the plugin's row in the panel (no red warning, not "Blocked").
 
 Plugin format, settings, dialogs, `@require`, and the player bridge are in `docs/WRITING-PLUGINS.md`. Plugins for Stremio Enhanced often run unchanged. Known limit: Stremio has **no `<video>` element** (mpv draws the video under the page), so plugins that need one (Picture-in-Picture, direct `video.currentTime`, canvas capture) must use `StremioPlus.player` instead; see `docs/PROTOCOL.md`.

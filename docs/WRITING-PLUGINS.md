@@ -60,7 +60,7 @@ Details on the messages behind this are in `PROTOCOL.md`.
 
 ## Behaviour to know
 
-- A plugin's code runs once per page load, after the panel's `ready`. There is no unload hook; disabling a plugin in the panel takes full effect after a restart.
+- A plugin's code runs once per page load, after the panel's `ready`. There is no unload hook; disabling a plugin in the panel takes full effect after a reload (Ctrl+R).
 - Errors are caught per plugin: a throwing plugin shows an error count in the panel and doesn't stop the others.
 - Keep work out of hot paths (per-frame or per-time-update handlers should be tiny) so playback stays smooth.
 - The plugin source is wrapped as `(function(StremioEnhancedAPI){ ... })(...)`, so top-level `return` works and top-level `const`s don't leak.

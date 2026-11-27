@@ -50,6 +50,7 @@ const getThemes = () => (scanCache || refreshScan()).themes;
 let status = {};
 let loaded = new Set();   // plugin files whose code has run on this page
 let errAt = {};
+let lastDoc = null;       // id of the page document that last got its plugins
 const MAX_ERR_LOG = 5;    // a plugin throwing in a loop must not flood the log
 const st = (file) => status[file] || (status[file] = { loadMs: null, errors: 0, lastError: '', blocked: '' });
 function recordError(file, msg) {
@@ -175,6 +176,8 @@ async function runPlugin(cdp, p) {
 async function handleOp(cdp, op, data) {
   switch (op) {
     case 'ready': {
+      // Once per document: the page asks (with retries) and the launcher steps in after load if it never did.
+      if (data.doc) { if (data.doc === lastDoc) return true; lastDoc = data.doc; }
       const cfg = loadConfig();
       refreshScan();
       const plugins = getPlugins(), themes = getThemes();
@@ -243,6 +246,11 @@ async function handleOp(cdp, op, data) {
       const cfg = loadConfig(); cfg.theme = t ? t.file : ''; saveConfig(cfg);
       return t ? t.text : '';
     }
+    case 'reload':
+      // Reload the page from the launcher side; the new document re-reads plugins/ and themes/ from disk.
+      log('page reload requested');
+      setTimeout(() => cdp.call('Page.reload', {}).catch((e) => log('WARN reload failed:', String(e.message || e))), 50);
+      return true;
     case 'openFolder':
       spawn('explorer.exe', [ROOT], { detached: true, stdio: 'ignore' }).unref();
       return true;
@@ -286,6 +294,21 @@ async function session(port, target) {
       if (file) recordError(file, exceptionMessage(d));
     } catch {}
   });
+  // Safety net for reloads: if the new document never sent 'ready', send it from here.
+  let kicking = false;
+  const kick = async () => {
+    if (kicking) return;
+    kicking = true;
+    try {
+      for (let i = 0; i < 20; i++) {
+        let r; try { r = await cdp.call('Runtime.evaluate', { expression: 'window.StremioPlus && StremioPlus._docId', returnByValue: true }); } catch { return; }
+        const doc = r && r.result && r.result.value;
+        if (doc) { if (doc !== lastDoc) { log('page did not send ready; initiating'); await handleOp(cdp, 'ready', { doc }); } return; }
+        await sleep(500);
+      }
+    } finally { kicking = false; }
+  };
+  cdp.on('Page.loadEventFired', () => { setTimeout(kick, 1000); });
   await cdp.call('Runtime.enable');
   await cdp.call('Page.enable');
   topFrameId = (await cdp.call('Page.getFrameTree')).frameTree.frame.id;

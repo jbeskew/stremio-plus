@@ -36,7 +36,7 @@ If you move the folder later, run `install.cmd` again so the shortcuts point at 
 ## Adding plugins and themes
 
 1. Put a plugin file named `Something.plugin.js` in the **`plugins`** folder, or a theme `Something.theme.css` in the **`themes`** folder. The panel's **Open folder** button opens the Stremio Plus folder.
-2. Open the panel (Ctrl+Shift+P). New plugins appear **enabled**. If a file you just added isn't listed, close Stremio completely and start it again from the shortcut.
+2. Open the panel (Ctrl+Shift+P). New plugins appear **enabled**. Press **Ctrl+R** (or F5, or the panel's **Reload** button) to reload Stremio and re-read the folders; this also picks up edits to existing plugins. You stay logged in. If a file still isn't listed, close Stremio completely and start it again from the shortcut.
 3. Pick one theme at a time under **Themes**. Tick or untick plugins to switch them. Enabling takes effect straight away; disabling takes full effect after a restart.
 4. Plugins with settings show a **Settings** button in the panel.
 

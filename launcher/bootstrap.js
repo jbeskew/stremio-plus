@@ -3,7 +3,7 @@
   'use strict';
   if (window !== window.top || location.origin !== 'https://web.stremio.com') return;
   if (window.StremioPlus) return;
-  const SP = (window.StremioPlus = { version: '0.2.0', plugins: [], themes: [], theme: '', _status: {} });
+  const SP = (window.StremioPlus = { version: '0.2.0', plugins: [], themes: [], theme: '', _status: {}, _docId: Date.now() + '-' + Math.random().toString(36).slice(2) });
 
   /* ---------- launcher RPC (CDP binding) ---------- */
   const pending = new Map();
@@ -288,7 +288,7 @@
     });
     w.querySelectorAll('button[data-s]').forEach((b) => { b.onclick = () => openSettings(SP.plugins[+b.dataset.s]); });
     w.querySelector('#of').onclick = () => SP.call('openFolder').catch(() => {});
-    w.querySelector('#rl').onclick = () => location.reload();
+    w.querySelector('#rl').onclick = () => SP.reload();
     w.querySelector('#cl').onclick = () => setOpen(false);
   }
 
@@ -364,6 +364,7 @@
   }
   window.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && dlgCur) { e.preventDefault(); e.stopPropagation(); finishDialog(-1); return; }
+    if (e.key === 'F5' || (e.ctrlKey && !e.shiftKey && !e.altKey && (e.key === 'r' || e.key === 'R'))) { e.preventDefault(); SP.reload(); return; }
     if (e.ctrlKey && e.shiftKey && (e.key === 'P' || e.key === 'p')) { e.preventDefault(); setOpen(!open); }
     else if (e.key === 'Escape' && open) { if (view) { view = null; hint = ''; renderPanel(); } else setOpen(false); }
   }, true);
@@ -396,6 +397,11 @@
   }).observe(document.documentElement, { childList: true, subtree: true });
 
   /* ---------- go ---------- */
-  const start = () => { ensurePanel(); addNavEntry(); SP.player.reobserve(); SP.call('ready').catch((e) => console.error('[stremio-plus] ready failed', e)); };
+  // Reload = new page document: the launcher re-reads plugins/ and themes/ and runs everything fresh (like Stremio Enhanced's Ctrl+R).
+  SP.reload = () => SP.call('reload').catch(() => location.reload());
+  const callReady = (n) => SP.call('ready', { doc: SP._docId }).catch((e) => {
+    if (n < 10) setTimeout(() => callReady(n + 1), 500); else console.error('[stremio-plus] ready failed', e);
+  });
+  const start = () => { ensurePanel(); addNavEntry(); SP.player.reobserve(); callReady(0); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start, { once: true }); else start();
 })();
