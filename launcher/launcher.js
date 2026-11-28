@@ -378,8 +378,9 @@ async function main() {
 
   if (!port) {
     port = await freePort();
+    const env = { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=' + port + ' --remote-debugging-address=127.0.0.1' };
     child = spawn(EXE, [], {
-      env: { ...process.env, WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: '--remote-debugging-port=' + port + ' --remote-debugging-address=127.0.0.1' },
+      env,
       stdio: 'ignore',
     });
     shellPid = child.pid;
@@ -398,6 +399,16 @@ async function main() {
   }
 
   writeJsonAtomic(SESSION, { launcherPid: process.pid, shellPid, port });
+
+  // Dead top pixel row on a maximized window when the monitor's scaling differs from the main display (see edgefix.ps1). "edgeFix": false in config.json turns it off.
+  if (loadConfig().edgeFix !== false) {
+    try {
+      const fixer = spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-WindowStyle', 'Hidden', '-File', path.join(__dirname, 'edgefix.ps1'), '-ShellPid', String(shellPid)], { stdio: 'ignore', windowsHide: true });
+      fixer.on('error', (e) => log('WARN edgefix failed to start:', String(e.message || e)));
+      process.on('exit', () => { try { fixer.kill(); } catch {} });
+      log('edgefix watcher started pid', fixer.pid);
+    } catch (e) { log('WARN edgefix:', String(e.message || e)); }
+  }
   const alive = child ? (() => child.exitCode === null && !child.killed) : (() => findShell() === shellPid);
   const cleanup = () => { try { const s = readJson(SESSION, {}); if (s.launcherPid === process.pid) fs.unlinkSync(SESSION); } catch {} };
   if (!child) setInterval(() => { if (!alive()) { log('Stremio exited'); cleanup(); process.exit(0); } }, 2000);
